@@ -2,6 +2,19 @@
 
 ## 1. System Design
 
+Three core actions:
+1. They should be able to add a pet with a name, breed, and other attributes
+2. They should be able to schedule things to do for them like feed them and take them on a walk
+3. They should be able to see their task they need to take care of them for today so they don't forget
+
+Brainstorm: 
+Tasks class: 
+    Lets us schedule tasks for the pet and update any information we need
+
+Pet class: 
+    Holds name, breed, weight, etc information to update later
+    Inherits tasks
+
 **a. Initial design**
 
 - Briefly describe your initial UML design.
