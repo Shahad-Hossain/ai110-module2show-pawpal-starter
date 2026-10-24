@@ -18,7 +18,12 @@ Pet class:
 **a. Initial design**
 
 - Briefly describe your initial UML design.
+Owner class that takes care of everything, and then other classes that handle information like scheduling tasks, and pet information.
 - What classes did you include, and what responsibilities did you assign to each?
+Owner class: The class that takes all the information from other classes
+Pet class: Stores information about the pet
+Task class: Stores information about the tasks
+Other classes to handle daily schedules and schedule items
 
 **b. Design changes**
 
