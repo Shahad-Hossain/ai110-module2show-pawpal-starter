@@ -6,6 +6,21 @@ from pawpal_system import Owner, Pet, Priority, Scheduler, Task
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
+
+def show_conflicts(warnings):
+    """Show scheduling conflicts as one warning: what clashed, plus what the owner can do about it."""
+    if not warnings:
+        return
+    noun = "conflict" if len(warnings) == 1 else "conflicts"
+    st.warning(
+        f"**{len(warnings)} time {noun} found.** Two tasks are set for overlapping times, "
+        "so the later one will be pushed back in your schedule.\n\n"
+        + "\n".join(f"- {w}" for w in warnings)
+        + "\n\n**Fix it:** change one task's preferred time, shorten it, or leave it as is "
+        "and let PawPal+ move it to the next free slot.",
+        icon="⚠️",
+    )
+
 st.title("🐾 PawPal+")
 st.caption("Plan your pets' daily care tasks and get an explained schedule.")
 
@@ -96,6 +111,7 @@ else:
     )
     pet_name_of = {id(t): pet.name for pet in owner.pets for t in pet.tasks}
     if shown:
+        st.caption(f"{len(shown)} task(s), sorted by preferred time (untimed tasks last).")
         st.table(
             [
                 {
@@ -106,7 +122,7 @@ else:
                     "Repeats": t.frequency,
                     "Due": t.due_date.isoformat(),
                     "Preferred time": f"{t.preferred_time:%H:%M}" if t.preferred_time else "-",
-                    "Done": t.completed,
+                    "Done": "✅" if t.completed else "⬜",
                 }
                 for t in shown
             ]
@@ -131,8 +147,7 @@ else:
                 )
                 st.rerun()
 
-    for warning in scheduler.find_time_conflicts(date.today()):
-        st.warning(f"Time conflict: {warning}")
+    show_conflicts(scheduler.find_time_conflicts(date.today()))
 
 st.divider()
 
@@ -143,19 +158,33 @@ if st.button("Generate schedule"):
         st.warning("Add at least one task first.")
     else:
         plan = Scheduler(owner).generate_plan(date.today())
-        st.success(f"{len(plan.items)} task(s) scheduled, {plan.total_minutes} of {owner.available_minutes} min used.")
-        st.table(
-            [
-                {
-                    "Time": f"{i.start_time:%H:%M}-{i.end_time:%H:%M}",
-                    "Pet": i.pet.name,
-                    "Task": i.task.title,
-                    "Why": i.reason,
-                }
-                for i in plan.items
-            ]
-        )
+        show_conflicts(plan.warnings)
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Scheduled", len(plan.items))
+        m2.metric("Minutes used", f"{plan.total_minutes} / {owner.available_minutes}")
+        m3.metric("Skipped", len(plan.skipped_tasks))
+        st.progress(min(plan.total_minutes / owner.available_minutes, 1.0))
+
+        if plan.items:
+            st.success(f"{len(plan.items)} task(s) scheduled for {plan.day:%A, %B %d}.")
+            st.table(
+                [
+                    {
+                        "Time": f"{i.start_time:%H:%M}-{i.end_time:%H:%M}",
+                        "Pet": i.pet.name,
+                        "Task": i.task.title,
+                        "Priority": i.task.priority.name.capitalize(),
+                        "Why": i.reason,
+                    }
+                    for i in plan.items
+                ]
+            )
+        else:
+            st.info("Nothing could be scheduled today.")
         if plan.skipped_tasks:
             st.warning(
-                "Skipped (not enough time): " + ", ".join(f"{t.title} ({t.duration_minutes} min)" for t in plan.skipped_tasks)
+                "**Skipped (not enough time):** "
+                + ", ".join(f"{t.title} ({t.duration_minutes} min)" for t in plan.skipped_tasks)
+                + ". Increase your available minutes to fit them."
             )

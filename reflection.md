@@ -29,6 +29,7 @@ Other classes to handle daily schedules and schedule items
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
+Yes. I added a `due_date` to Task so daily and weekly tasks could repeat, and a `warnings` list on DailyPlan so conflicts show up with the plan. I also added a few Scheduler methods (sorting by time, filtering, and conflict checks) that weren't in my first UML.
 
 ---
 
@@ -38,6 +39,7 @@ Other classes to handle daily schedules and schedule items
 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
 - How did you decide which constraints mattered most?
+The scheduler looks at the time the owner has available, task priority, preferred times, and each task's due date. Time available matters most because it can't be bent, then priority so the important stuff like medication always makes the cut, then preferred times since those are only nice to have.
 
 **b. Tradeoffs**
 
@@ -54,11 +56,13 @@ A pet owner knows things the scheduler doesn't (the vet call can't actually move
 
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
 - What kinds of prompts or questions were most helpful?
+I used AI to brainstorm the classes, turn my UML into code, and write tests. The most helpful prompts were specific ones, like "what edge cases should I test for this method?" instead of "make it better."
 
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
 - How did you evaluate or verify what the AI suggested?
+The AI suggested having the scheduler automatically move conflicting tasks to a new time. I changed it to just warn the owner, since the owner knows which task can actually move. I checked suggestions by running main.py and the tests instead of trusting that the code looked right.
 
 ---
 
@@ -68,11 +72,13 @@ A pet owner knows things the scheduler doesn't (the vet call can't actually move
 
 - What behaviors did you test?
 - Why were these tests important?
+I tested sorting, recurring tasks, conflict detection, the time budget, and edge cases like empty pets, tasks running past midnight, and invalid updates. These matter because the whole app depends on the schedule being right, and a wrong schedule means a missed feeding or medication.
 
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
 - What edge cases would you test next if you had more time?
+Pretty confident, 5/5 for what I tested since all 38 tests pass. Next I'd test the Streamlit app itself and what happens when a recurring task is completed late.
 
 ---
 
@@ -81,11 +87,14 @@ A pet owner knows things the scheduler doesn't (the vet call can't actually move
 **a. What went well**
 
 - What part of this project are you most satisfied with?
+The Scheduler. It's easy to read, each method does one thing, and the UI just calls it.
 
 **b. What you would improve**
 
 - If you had another iteration, what would you improve or redesign?
+I'd let the scheduler suggest a new time for a conflicting task, and let owners edit or delete tasks in the app. I'd also make recurring tasks count from their original due date.
 
 **c. Key takeaway**
 
 - What is one important thing you learned about designing systems or working with AI on this project?
+AI is fast, but I still have to be the lead architect and make the design calls. What worked best was keeping separate chat sessions for each phase (design, building, testing, polish) so each one stayed focused. The AI features that helped most were generating code from my UML, writing tests, and catching edge cases I missed. I learned to treat its suggestions as drafts, check them against my design, and say no when they make things more complicated.
