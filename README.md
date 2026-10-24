@@ -76,14 +76,15 @@ Sample test output:
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
-
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Sorting by time | `Scheduler.sort_by_time()` | Orders tasks by `preferred_time`, earliest first; tasks with no preferred time go last. |
+| Sorting by importance | `Scheduler.sort_tasks()` | Priority (high first), then preferred time, then shortest duration. Used to decide what survives when time is short. |
+| Filtering by pet / status | `Scheduler.filter_tasks(pet_name, completed)` | Both filters are optional and can be combined; pet names are case-insensitive. |
+| Filtering by time budget | `Scheduler.filter_by_constraints()` | Greedily keeps tasks (in priority order) that fit in the owner's available minutes; the rest are listed as skipped. |
+| Conflict detection | `Scheduler.find_time_conflicts()` | Compares the preferred-time windows (start to start + duration) of all pets' tasks and returns warning strings instead of raising. Back-to-back tasks are not conflicts. Warnings appear in `DailyPlan.warnings` and in the app. |
+| Recurring tasks | `Task.mark_complete()`, `Scheduler.mark_task_complete()` | Completing a `daily` or `weekly` task creates a new copy due `today + 1 day` or `today + 7 days` (via `timedelta`). Tasks only appear in a day's plan once `due_date` has arrived. |
+| Daily plan | `Scheduler.generate_plan()` | Combines the above: sorts, fits to the time budget, places timed tasks at their preferred time when free, and records a reason for every item. |
 
 ## 📸 Demo Walkthrough
 

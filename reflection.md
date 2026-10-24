@@ -42,7 +42,9 @@ Other classes to handle daily schedules and schedule items
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
+The scheduler only warns about conflicts instead of resolving them, and it only checks tasks that have a preferred time. When two timed tasks overlap, the plan quietly pushes the later one back (for example a 8:15 vet call starts at 8:30 after the 8:00 walk) and `find_time_conflicts()` reports the overlap as a warning. Tasks without a preferred time are never flagged because the scheduler places them itself.
 - Why is that tradeoff reasonable for this scenario?
+A pet owner knows things the scheduler doesn't (the vet call can't actually move, the walk can). Auto-rearranging could silently break a real appointment, while a clear warning lets the owner decide. Pairwise checking is also simple and fast enough for the handful of tasks one household has in a day.
 
 ---
 

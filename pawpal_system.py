@@ -1,9 +1,12 @@
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, replace
 from datetime import date, datetime, time, timedelta
 from enum import Enum
+from itertools import combinations
 from typing import List, Optional
 
 DEFAULT_DAY_START = time(8, 0)
+# Days until the next occurrence of a recurring task; any other frequency is a one-off.
+RECURRENCE_DAYS = {"daily": 1, "weekly": 7}
 
 
 class Priority(Enum):
@@ -18,9 +21,10 @@ class Task:
     category: str
     duration_minutes: int
     priority: Priority
-    frequency: str = "daily"
+    frequency: str = "once"
     preferred_time: Optional[time] = None
     completed: bool = False
+    due_date: date = field(default_factory=date.today)
 
     def update(self, **changes) -> None:
         """Update the given task fields by name, raising AttributeError for unknown fields."""
@@ -30,9 +34,13 @@ class Task:
                 raise AttributeError(f"Task has no field '{key}'")
             setattr(self, key, value)
 
-    def mark_complete(self) -> None:
-        """Mark this task as completed."""
+    def mark_complete(self) -> Optional["Task"]:
+        """Mark this task completed; for daily/weekly tasks return a new copy due on the next occurrence."""
         self.completed = True
+        step = RECURRENCE_DAYS.get(self.frequency)
+        if step is None:
+            return None
+        return replace(self, completed=False, due_date=date.today() + timedelta(days=step))
 
 
 @dataclass
@@ -61,9 +69,8 @@ class Pet:
             self.tasks.remove(task)
 
     def get_tasks_for_day(self, day: date) -> List[Task]:
-        """Return this pet's tasks that still need doing on the given day."""
-        # Every task that still needs doing; recurrence isn't tracked per date yet.
-        return [t for t in self.tasks if not t.completed]
+        """Return this pet's incomplete tasks that are due on or before the given day."""
+        return [t for t in self.tasks if not t.completed and t.due_date <= day]
 
 
 @dataclass
@@ -102,6 +109,7 @@ class DailyPlan:
     items: List[ScheduledItem] = field(default_factory=list)
     total_minutes: int = 0
     skipped_tasks: List[Task] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
 
     def add_item(self, item: ScheduledItem) -> None:
         """Add a scheduled item and include its duration in the plan total."""
@@ -120,6 +128,8 @@ class DailyPlan:
             lines.append("Skipped (not enough time):")
             for task in self.skipped_tasks:
                 lines.append(f"  {task.title} ({task.duration_minutes} min, {task.priority.name})")
+        for warning in self.warnings:
+            lines.append(f"WARNING: {warning}")
         return "\n".join(lines)
 
 
@@ -137,7 +147,7 @@ class Scheduler:
 
     def generate_plan(self, day: date) -> DailyPlan:
         """Build a time-ordered plan for the day from all of the owner's pets' tasks."""
-        plan = DailyPlan(day=day)
+        plan = DailyPlan(day=day, warnings=self.find_time_conflicts(day))
         pet_of = {}
         tasks = []
         for pet in self.owner.pets:
@@ -151,7 +161,7 @@ class Scheduler:
         plan.skipped_tasks = [t for t in ordered if id(t) not in kept_ids]
 
         # Place tasks in time order; a preferred time is honoured when it's still free.
-        kept.sort(key=lambda t: (t.preferred_time is None, t.preferred_time or time.min))
+        kept = self.sort_by_time(kept)
         cursor = self.owner.preferences.get("day_start", DEFAULT_DAY_START)
         for task in kept:
             start = cursor
@@ -178,6 +188,46 @@ class Scheduler:
                 t.duration_minutes,
             ),
         )
+
+    def sort_by_time(self, tasks: List[Task]) -> List[Task]:
+        """Sort tasks by preferred time of day, earliest first, with untimed tasks last."""
+        return sorted(tasks, key=lambda t: (t.preferred_time is None, t.preferred_time or time.min))
+
+    def filter_tasks(self, pet_name: Optional[str] = None, completed: Optional[bool] = None) -> List[Task]:
+        """Return the owner's tasks, optionally limited to one pet (by name) and/or completion status."""
+        return [
+            task
+            for pet in self.owner.pets
+            if pet_name is None or pet.name.lower() == pet_name.lower()
+            for task in pet.tasks
+            if completed is None or task.completed == completed
+        ]
+
+    def mark_task_complete(self, pet: Pet, task: Task) -> Optional[Task]:
+        """Complete a task and, if it recurs, add its next occurrence to the pet; return that new task."""
+        next_task = task.mark_complete()
+        if next_task is not None:
+            pet.add_task(next_task)
+        return next_task
+
+    def find_time_conflicts(self, day: date) -> List[str]:
+        """Return warning messages for tasks (any pets) whose preferred-time windows overlap."""
+        timed = [
+            (pet, task)
+            for pet in self.owner.pets
+            for task in pet.get_tasks_for_day(day)
+            if task.preferred_time is not None
+        ]
+        timed.sort(key=lambda pair: pair[1].preferred_time)
+        warnings = []
+        for (pet_a, a), (pet_b, b) in combinations(timed, 2):
+            end_a = _add_minutes(a.preferred_time, a.duration_minutes) or time.max
+            if b.preferred_time < end_a:  # sorted by start, so b starts at or after a
+                warnings.append(
+                    f"'{a.title}' ({pet_a.name}, {a.preferred_time:%H:%M}-{end_a:%H:%M}) "
+                    f"overlaps '{b.title}' ({pet_b.name}, starts {b.preferred_time:%H:%M})"
+                )
+        return warnings
 
     def filter_by_constraints(self, tasks: List[Task], available_minutes: int) -> List[Task]:
         """Greedily keep tasks, in the given order, that still fit in the time budget."""
