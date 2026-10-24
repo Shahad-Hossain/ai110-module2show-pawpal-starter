@@ -60,19 +60,37 @@ Plan for 2026-10-24 (110 min total):
 
 ## 🧪 Testing PawPal+
 
-```bash
-# Run the full test suite:
-pytest
+To run the tests:
 
-# Run with coverage:
-pytest --cov
+```bash
+python -m pytest
 ```
+
+My tests are in `tests/tests_pawpal.py` and cover the main scheduling behaviors:
+
+- **Sorting:** tasks come back in chronological order (earliest preferred time first, untimed tasks last), and the generated plan has ascending start times.
+- **Recurrence:** completing a daily or weekly task adds a new copy due the next day or next week. One-off tasks don't repeat.
+- **Conflict detection:** the `Scheduler` warns when tasks overlap or share the same time, even across different pets. Back-to-back tasks are not flagged.
+- **Basics:** marking a task complete, adding tasks to a pet, filtering by pet name and status, and keeping future tasks out of today's plan.
 
 Sample test output:
 
 ```
-# Paste your pytest output here
+============================= test session starts =============================
+platform win32 -- Python 3.12.4, pytest-9.1.1, pluggy-1.7.0
+rootdir: C:\Users\Sabbirus\ai110-module2show-pawpal-starter
+configfile: pytest.ini
+testpaths: tests
+collected 38 items
+
+tests\tests_pawpal.py ......................................             [100%]
+
+============================= 38 passed in 0.10s ==============================
 ```
+
+**Confidence Level: ★★★★★ (5/5)**
+
+All 38 tests pass. Edge cases covered: empty owners and pets, a zero or exactly-filled time budget, long tasks that can't block shorter ones, ties in sorting, untimed tasks, preferred times that are free versus taken, tasks that run to or past midnight, completed, overdue, and future tasks, weekly and unknown recurrence frequencies (including overdue tasks), overlapping, contained, duplicate, and back-to-back time windows, invalid field updates, and removing items that don't exist.
 
 ## 📐 Smarter Scheduling
 
